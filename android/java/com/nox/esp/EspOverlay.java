@@ -50,6 +50,8 @@ public final class EspOverlay extends View {
     }
 
     private static native void nativeInit();
+    private static native String nativeProbe();
+    private static String lastProbe = "";
 
     public EspOverlay(Activity activity) {
         super(activity);
@@ -118,11 +120,19 @@ public final class EspOverlay extends View {
         super.onDraw(canvas);
         Frame frame = latest;
         if (frame == null) {
+            String probe = nativeProbe();
+            if (!probe.equals(lastProbe)) {
+                android.util.Log.i("NOX-RUNTIME", probe);
+                lastProbe = probe;
+            }
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(Color.WHITE);
             paint.setTextSize(11 * density);
             canvas.drawText("NOX / aguardando dados de entidades", 10*density,
                             22*density, paint);
+            paint.setTextSize(8 * density);
+            canvas.drawText(probe, 10*density, 38*density, paint);
+            postInvalidateDelayed(1500);
             return;
         }
         float[] data = frame.actors;

@@ -1,0 +1,62 @@
+name: Colocar APK de diagnóstico na main (Git LFS)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nox-ff-lfs-main
+  cancel-in-progress: false
+
+jobs:
+  push-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+          lfs: true
+
+      - name: Instalar e configurar Git LFS
+        run: |
+          set -euo pipefail
+          git lfs version
+          git lfs install --local
+          git lfs track "releases/*.apk"
+
+      - name: Baixar e validar APK completo
+        shell: bash
+        env:
+          APK_URL: ${{ secrets.NOX_DIAG_APK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APK_URL" ]; then
+            echo "::error::Falta o Secret NOX_DIAG_APK_URL: URL HTTPS direta do APK."
+            exit 1
+          fi
+          mkdir -p releases
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 30 --max-time 1200 --silent --show-error \
+            "$APK_URL" -o releases/NOX-FF-OB55-runtime-probe.apk
+          test "$(stat -c '%s' releases/NOX-FF-OB55-runtime-probe.apk)" = "477272171"
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  releases/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+          echo "APK íntegro"
+
+      - name: Registrar binário no Git LFS e enviar à main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .gitattributes releases/NOX-FF-OB55-runtime-probe.apk
+          if git diff --cached --quiet; then
+            echo "APK já está na main"
+            exit 0
+          fi
+          git commit -m "Store diagnostic ARM64 APK via Git LFS"
+          git push origin HEAD:main
+          git lfs ls-files

@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(nox_esp LANGUAGES CXX)
+add_library(nox_esp SHARED jni_bridge.cpp)
+target_compile_features(nox_esp PRIVATE cxx_std_20)
+set_target_properties(nox_esp PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+target_compile_options(nox_esp PRIVATE -Wall -Wextra -Werror)

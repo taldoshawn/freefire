@@ -1,0 +1,56 @@
+name: Publicar APK de diagnóstico
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Baixar APK inteiro e validar integridade
+        shell: bash
+        env:
+          APK_URL: ${{ secrets.NOX_DIAG_APK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APK_URL" ]; then
+            echo "::error::Configure o Secret NOX_DIAG_APK_URL com um link direto para o APK completo."
+            exit 1
+          fi
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 20 --max-time 1200 \
+            --silent --show-error "$APK_URL" \
+            --output NOX-FF-OB55-runtime-probe.apk
+          actual_size="$(stat -c '%s' NOX-FF-OB55-runtime-probe.apk)"
+          if [ "$actual_size" != "477272171" ]; then
+            echo "::error::O download não corresponde ao APK verificado: tamanho=$actual_size (esperado 477272171)."
+            exit 1
+          fi
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  NOX-FF-OB55-runtime-probe.apk" | sha256sum --check --status
+          file NOX-FF-OB55-runtime-probe.apk
+          echo "APK íntegro e identificado pelo SHA-256."
+
+      - name: Criar Release com APK completo
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="nox-ff-ob55-diagnostic"
+          filename="NOX-FF-OB55-runtime-probe.apk"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$filename" \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$filename" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "NOX-FF OB55 — APK de diagnóstico ARM64" \
+              --notes "Versão 1.132.1 / Android ARM64. Contém o módulo de diagnóstico de carregamento IL2CPP. NÃO é um ESP funcional em partida. SHA-256: c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+            --json url,assets --jq '.url, (.assets[] | .name)'

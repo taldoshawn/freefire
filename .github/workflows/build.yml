@@ -36,8 +36,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Locate preinstalled Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "${ANDROID_HOME:?Runner has no ANDROID_HOME}"
+          command -v sdkmanager
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
 
       - name: Install Android platform, build tools and NDK
         shell: bash

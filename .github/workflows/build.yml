@@ -1,0 +1,142 @@
+name: NOX ARM64
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "module: gera SO/DEX; apk: também recompila o APK completo do Release"
+        type: choice
+        required: true
+        default: module
+        options:
+          - module
+          - apk
+      release_tag:
+        description: "Tag da Release privada que contém original.apk"
+        type: string
+        required: true
+        default: inputs
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform, build tools and NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "ndk;26.3.11579264"
+          SDK="$ANDROID_HOME"
+          echo "SDK=$SDK" >> "$GITHUB_ENV"
+          echo "NDK=$SDK/ndk/26.3.11579264" >> "$GITHUB_ENV"
+
+      - name: Test Python packaging functions
+        shell: bash
+        run: PYTHONPATH=. python3 -m unittest discover -s tests -v
+
+      - name: Compile JNI ARM64
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S android/native -B build/arm64 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_STL=c++_static
+          cmake --build build/arm64 --parallel 2
+          test -s build/arm64/libnox_esp.so
+
+      - name: Compile Java classes and DEX
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/java-classes build/dex
+          find android/java -name '*.java' -print0 | xargs -0 javac \
+            --release 8 -cp "$SDK/platforms/android-35/android.jar" \
+            -d build/java-classes
+          find build/java-classes -name '*.class' -print0 | xargs -0 \
+            "$SDK/build-tools/35.0.0/d8" --min-api 26 \
+            --lib "$SDK/platforms/android-35/android.jar" --output build/dex
+          test -s build/dex/classes.dex
+
+      - name: Upload ARM64 module
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-ARM64-module
+          path: |
+            build/arm64/libnox_esp.so
+            build/dex/classes.dex
+            android/native/nox_api.h
+          if-no-files-found: error
+
+      - name: Download full original APK and apktool
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apk'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input build
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "original.apk" \
+            --dir input
+          test -s input/original.apk
+          gh api repos/iBotPeaches/Apktool/releases/latest \
+            --jq '.assets[] | select(.name | test("^apktool_.*\\.jar$")) | .browser_download_url' \
+            | head -n 1 > build/apktool-url.txt
+          test -s build/apktool-url.txt
+          curl -fL --retry 3 "$(cat build/apktool-url.txt)" -o build/apktool.jar
+          test -s build/apktool.jar
+
+      - name: Rebuild ARM64 APK
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apk'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/patch_apk.py \
+            --apk input/original.apk \
+            --dex build/dex/classes.dex \
+            --so build/arm64/libnox_esp.so \
+            --apktool build/apktool.jar \
+            --output build/nox-unsigned.apk
+          "$SDK/build-tools/35.0.0/zipalign" -f 4 \
+            build/nox-unsigned.apk build/nox-aligned.apk
+          keytool -genkeypair -noprompt -keystore build/nox-test.jks \
+            -alias nox -keyalg RSA -keysize 3072 -validity 365 \
+            -storepass changeit -keypass changeit -dname "CN=NOX Test"
+          "$SDK/build-tools/35.0.0/apksigner" sign \
+            --ks build/nox-test.jks --ks-key-alias nox \
+            --ks-pass pass:changeit --key-pass pass:changeit \
+            --out build/nox-arm64-test-signed.apk build/nox-aligned.apk
+          "$SDK/build-tools/35.0.0/apksigner" verify \
+            --verbose build/nox-arm64-test-signed.apk
+
+      - name: Upload test APK
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apk'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-ARM64-test-APK
+          path: build/nox-arm64-test-signed.apk
+          if-no-files-found: error

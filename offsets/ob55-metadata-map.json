@@ -1,0 +1,103 @@
+{
+  "target": "Free Fire Android 1.132.1 (OB55)",
+  "abi": "arm64-v8a",
+  "libraries": {
+    "libil2cpp_sha256": "549093d79212873f26bc13f8957d06cc7575e92f24b53721eb13e8a0a53cb657",
+    "libil2cpp_gnu_build_id": "ee8bf32c4483429084fde022704ead01a94b6620"
+  },
+  "metadata": {
+    "sha256": "e6550955f005877d6daf94f4984892501ad86fe36d52cd1a1c94ceed0dd15aa3",
+    "section_directory_xor": "0x66666666",
+    "runtime_field_offsets_available": false
+  },
+  "types": [
+    {
+      "name": "COW.GamePlay.Player",
+      "type_definition_index": 31824,
+      "metadata_record_file_offset": 53977100,
+      "field_count": 1689,
+      "fields": [
+        {
+          "name": "m_PlayerHPChangeEvt",
+          "global_field_index": 251493,
+          "metadata_record_file_offset": 44991292
+        },
+        {
+          "name": "PlayerChangeTeamEvt",
+          "global_field_index": 251522,
+          "metadata_record_file_offset": 44991640
+        },
+        {
+          "name": "MainCameraTransform",
+          "global_field_index": 251591,
+          "metadata_record_file_offset": 44992468
+        },
+        {
+          "name": "TeamModeID",
+          "global_field_index": 251600,
+          "metadata_record_file_offset": 44992576
+        },
+        {
+          "name": "m_TransformObject",
+          "global_field_index": 252298,
+          "metadata_record_file_offset": 45000952
+        }
+      ]
+    },
+    {
+      "name": "COW.GamePlay.CameraControllerBase",
+      "type_definition_index": 31998,
+      "metadata_record_file_offset": 53992412,
+      "field_count": 12,
+      "fields": [
+        {
+          "name": "m_Manager",
+          "global_field_index": 254878,
+          "metadata_record_file_offset": 45031912
+        }
+      ]
+    },
+    {
+      "name": "COW.GamePlay.CameraControllerManager",
+      "type_definition_index": 32002,
+      "metadata_record_file_offset": 53992764,
+      "field_count": 19,
+      "fields": [
+        {
+          "name": "CameraModeHeightOffset",
+          "global_field_index": 254904,
+          "metadata_record_file_offset": 45032224
+        }
+      ]
+    },
+    {
+      "name": "COW.GamePlay.FollowCamera",
+      "type_definition_index": 32021,
+      "metadata_record_file_offset": 53994436,
+      "field_count": 93,
+      "fields": [
+        {
+          "name": "IsOnHead",
+          "global_field_index": 255102,
+          "metadata_record_file_offset": 45034600
+        },
+        {
+          "name": "CameraCollisionOffsetRight",
+          "global_field_index": 255104,
+          "metadata_record_file_offset": 45034624
+        }
+      ]
+    },
+    {
+      "name": "UnityEngine.Camera",
+      "type_definition_index": 40830,
+      "metadata_record_file_offset": 54769628
+    },
+    {
+      "name": "UnityEngine.Transform",
+      "type_definition_index": 41116,
+      "metadata_record_file_offset": 54794796
+    }
+  ],
+  "note": "File offsets and IL2CPP metadata indexes above are verified positions within global-metadata.dat. They are not object field offsets or live process addresses. Runtime address derivation requires identifying native field-offset tables or accessing live class metadata and validating in an actual execution."
+}

@@ -101,14 +101,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.release_tag }}
+          APK_URL: ${{ secrets.NOX_ORIGINAL_APK_URL }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p input build
-          gh release download "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern "original.apk" \
-            --dir input
+          if [ -n "$APK_URL" ]; then
+            curl --fail --location --retry 3 --silent --show-error \
+              "$APK_URL" --output input/original.apk
+          else
+            gh release download "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "original.apk" \
+              --dir input
+          fi
           test -s input/original.apk
           gh api repos/iBotPeaches/Apktool/releases/latest \
             --jq '.assets[] | select(.name | test("^apktool_.*\\.jar$")) | .browser_download_url' \

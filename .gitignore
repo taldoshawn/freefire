@@ -1,0 +1,12 @@
+# C++/Android build outputs
+build/
+.cxx/
+.gradle/
+*.class
+*.apk
+*.aab
+*.jks
+*.keystore
+input/
+__pycache__/
+*.pyc

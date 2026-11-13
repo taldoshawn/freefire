@@ -1,5 +1,14 @@
 # NOX-FF: usar GitHub Actions só com o celular
 
+## APK completo sem publicar no repositório público
+
+Como o repositório agora é **público**, qualquer APK anexado a uma Release pública ficará acessível a outras pessoas. Prefira hospedar o APK original em um endereço temporário de download direto, com acesso controlado, e cadastrar essa URL em **Settings → Secrets and variables → Actions → New repository secret** com o nome `NOX_ORIGINAL_APK_URL`.
+
+Em **Actions → NOX ARM64 → Run workflow**, selecione `apk`. O workflow usa a URL do Secret antes de tentar baixar uma Release. O link precisa servir diretamente os bytes do APK, sem login no navegador ou página intermediária. Não publique a URL no README, nos issues nem nos inputs do workflow.
+
+Se não houver um APK íntegro, o processo de geração do APK é interrompido; os três ZIPs parciais não satisfazem a validação. Mesmo um APK montado e assinado não terá ESP operacional até existir a leitura real da câmera e dos jogadores.
+
+
 O repositório já contém o módulo visual e o workflow. Não exige PC para *compilar*. Não transforma o módulo em leitor de entidades do Free Fire.
 
 ## Gerar módulo ARM64

@@ -1,4 +1,4 @@
-name: NOX ARM64 nativo - emulador macOS
+name: NOX ARM64 nativo - emulador macOS (nonblocking)
 
 on:
   push:

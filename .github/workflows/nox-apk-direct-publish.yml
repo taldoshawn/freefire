@@ -1,0 +1,68 @@
+name: Publicar NOX FF APK completo (transferência Dropbox)
+
+on:
+  push:
+    paths:
+      - ".github/workflows/nox-apk-direct-publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Baixar as sete partes do Dropbox
+        shell: bash
+        env:
+          U00: "aHR0cHM6Ly91YzI0MWUyMTVlYTQyN2UzMTlhN2IzNDkzN2Y2LmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw1Qko1NG1waW9xZ0J4SGtjREhHazJ5WUtZZGRRZDRyT1lmOHZjR2Z3V1lkZHZpMU5yUjVnWVRVeS1ZYUFlcXN1UlY2Vm5JbzA2RnJDLXhNNHI2ejV6MzFHcjdlQjZ4TnA4QnBfZ1dMLW5rZGZlZ3llUUt4VEctLWIzaWhHOUN4c2pmbVJyNnUwRENaOGphSjdZcUFkOFNWWUdSQnZia0xFU21MSkRkbUcwdTNnL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U01: "aHR0cHM6Ly91Y2RlNDAyNjQyNGFjNmJmZDYxMTk3YzZhMGNjLmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw3SkREQnhWTk03UC1rdTQzZ1Jhc0N6OVVNTVlUSFZMTGV2V0xaakJfMEZRRlVqcnh4OFN5bDJmZjZ6SXMwYlcyNVEzRVc1NWVNZnhnTVozMFVXV05MZGdDNFp3WmJSbVhSS0ZZY3JVWXdwQzlDeE9QTENwRjVJbUpZSEZhb2p3QnFZeDd4OF8zTWZRVjNqYzh0dEU0N0ZGYWhOUTZ6SHZyWF9TcER6LU5SdXN3L2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U02: "aHR0cHM6Ly91YzEwYjY4MDhjMTgxYzc0ZDcwZmFhMjA0NjhjLmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw2S3RrajM2eFJEc1pfeHZ1Z1hoVEZnUUFNeVVyLVBwNWJFaFk5Mm9oenRCenRBbWV0OGdWTm94aS1nbDk3OTRjOExXN0NkblRFSnRYd2tUMVBOQlZFbDdQQ1FkVzdKUVhkekFpdUNmakpwd3NRNEllWWk5TkUybGxLTkRDaERwV3BTUHZGX2lqbUVjU0lDNWNYVmdvdFk4WTlBWDhkbUZidlRZV0RuMFNPYzNRL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U03: "aHR0cHM6Ly91Yzk3M2Y4YmMyN2I5Njg3ZGVmOGZjZmM0MjA4LmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw0OXhkanJsLWdoZHp1cGtDeGtVdThqMmc0Y2ZrbUk1U2NMc2FtZUluZFB2R0c4T0dBVmJpLUpGSWJVczJka190cmtVWFpvSVRhVzNsMHlDYUhJR0tUYkllUFp4RGVvX1M0Ym95YzlySW1RQ0NFTGFnQml3YjlvdDRtR09ramZremplb3VBNW53d3NydU5nNWdaTHlCelNMX244aXJqWlp0cmJhQTBBYjJhbUlBL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U04: "aHR0cHM6Ly91Y2Q2NzBhNTQ2ZWQxM2YxYWExYzI5OTVlZDg4LmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw0OGZfMTM4QmxZaE16STdWaE4wdDcycmJfcXE0Mk9rNTlXWV9qbFNZVDE5Uk9qN0Q2SHU0dXQyTmxOc2pFQk1TaVBvMnR5M29lajEtRndXLXVJbFVrTFVKUmVuZHQ0N0x3ekpGcGtia2ZXQ0tfMHExcWZPRlBTZTFYTHBWX091UHEyVFI3bXAxeXU2djg4M0liOG5yNVcteTJuRmxSX3RyWWdLcl9zSVpaMGl3L2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U05: "aHR0cHM6Ly91YzNhMGZiOTg2OTg1NDk5YzNiODdmZjMzNjk5LmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw3YUtKQW1HMVFQSDNnRi1tZnlpV1JYNHZKNGxnQVk0c3dfbjctQWNGQnZOemxna2kwWmZzWDJ1Q1o0Nk1PMzdKazhEVUZEMkFyM09DUkpCLXJMaXZQZ19XbE1jOEZfcWZXUnVMbDkwMERTVTdGMTQ2VVhhMHIzU0FfUzgxZ2VFYVNZeVBWSEE5S2lEV1l4UTNqel9mRDFGRXEzVkVURnRrUjlfRFFrUGI5MGVnL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          U06: "aHR0cHM6Ly91Yzg1YzJhNmJlOWNhMTBkYTUzNzNmZTZlZWY2LmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw1RlVHeXdfb09GOWcxYUgzblNad19ZbHVfcGlyZlZrS2lOTjBGNnA2cVBDekZVUUlEQXU1T2pBYTNzdTE5QU1PS1c3MHRYV3dGMHU0MjU5dEdPZmdQWHJXRF9BQmViSUp0OVBCMDdaX0tBUHFKYUp5akN6NlpKWVI1OGhYWFNXUHpfZGJlUjVva2NYZG5uN2gzSTZkZ3FadnMxVnRQUHFMYmFUWUVfY2xlZGhRL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/noxparts
+          for i in 00 01 02 03 04 05 06; do
+            variable="U${i}"
+            encoded="${!variable}"
+            url="$(printf '%s' "$encoded" | base64 --decode)"
+            echo "Baixando parte $i"
+            curl --fail --location --silent --show-error \
+              --connect-timeout 30 --max-time 500 \
+              --output "/tmp/noxparts/part$i" "$url"
+          done
+          test "$(stat -c '%s' /tmp/noxparts/part00)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part01)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part02)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part03)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part04)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part05)" = "73400320"
+          test "$(stat -c '%s' /tmp/noxparts/part06)" = "36870251"
+          cat /tmp/noxparts/part* > /tmp/NOX-FF-OB55-runtime-probe.apk
+          test "$(stat -c '%s' /tmp/NOX-FF-OB55-runtime-probe.apk)" = "477272171"
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  /tmp/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+          echo "APK completo verificado por SHA-256"
+
+      - name: Publicar APK em uma Release (um arquivo)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          apk="/tmp/NOX-FF-OB55-runtime-probe.apk"
+          tag="nox-ff-ob55-diagnostic-complete"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "NOX FF OB55 — APK de diagnóstico completo" \
+              --notes "Arquivo Android ARM64 de diagnóstico IL2CPP. 477272171 bytes, SHA-256 c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1. Não é ESP funcional."
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets --jq '.url, (.assets[] | "\(.name) \(.size) bytes")'

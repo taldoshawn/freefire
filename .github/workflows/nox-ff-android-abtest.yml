@@ -1,0 +1,60 @@
+name: NOX test A-B overlay ativo vs desativado
+
+on:
+  push:
+    paths:
+      - ".github/workflows/nox-ff-android-abtest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  abtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar APK publicado
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ab-output
+          gh release download nox-ff-ob55-diagnostic-complete --repo "$GITHUB_REPOSITORY" \
+            --pattern "NOX-FF-OB55-runtime-probe.apk" --dir ab-output
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  ab-output/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+      - name: Habilitar KVM
+        run: sudo chown "$USER" /dev/kvm || true
+      - name: Testar duas configuracoes do mesmo APK no Android 15
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash tools/diagnose_android_ab.sh
+      - name: Relatorio A-B
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-Android-AB-test
+          path: |
+            ab-output/summary.txt
+            ab-output/*-logcat.txt
+            ab-output/*-screen.png
+            ab-output/*-launch.txt
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Resumo A-B
+        if: always()
+        shell: bash
+        run: |
+          if [ -f ab-output/summary.txt ]; then
+            tail -n 110 ab-output/summary.txt >> "$GITHUB_STEP_SUMMARY"
+          fi

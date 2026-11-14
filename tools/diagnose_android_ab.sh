@@ -11,8 +11,14 @@ for mode in overlay_enabled overlay_disabled; do
   echo "===== MODE $mode =====" | tee -a ab-output/summary.txt
   adb shell am force-stop com.dts.freefireth >/dev/null 2>&1 || true
   if [ "$mode" = overlay_disabled ]; then
-    adb shell pm disable --user 0 com.dts.freefireth/com.nox.esp.BootstrapProvider \
-      2>&1 | tee -a ab-output/summary.txt
+    echo "Solicitando root ADB no emulador para alterar somente o componente de teste" | tee -a ab-output/summary.txt
+    adb root 2>&1 | tee -a ab-output/summary.txt || true
+    adb wait-for-device
+    if ! adb shell pm disable --user 0 com.dts.freefireth/com.nox.esp.BootstrapProvider \
+        2>&1 | tee -a ab-output/summary.txt; then
+      echo "DESATIVACAO_FALHOU: este A/B nao e conclusivo" | tee -a ab-output/summary.txt
+      continue
+    fi
     adb shell dumpsys package com.dts.freefireth |
       grep -A10 -B2 BootstrapProvider | head -n 24 >> ab-output/summary.txt || true
   fi

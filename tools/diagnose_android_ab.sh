@@ -17,7 +17,7 @@ for mode in overlay_enabled overlay_disabled; do
       grep -A10 -B2 BootstrapProvider | head -n 24 >> ab-output/summary.txt || true
   fi
   adb logcat -c || true
-  adb shell am start -W -n com.dts.freefireth/.FFMainActivity \
+  adb shell am start -n com.dts.freefireth/.FFMainActivity \
     > "ab-output/$mode-launch.txt" 2>&1 || true
   sleep 48
   adb logcat -d -v threadtime > "ab-output/$mode-logcat.txt" 2>&1 || true

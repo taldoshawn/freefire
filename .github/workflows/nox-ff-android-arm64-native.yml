@@ -1,4 +1,4 @@
-name: NOX ARM64 nativo - emulador macOS (nonblocking)
+name: NOX ARM64 nativo - A-B com root no emulador
 
 on:
   push:

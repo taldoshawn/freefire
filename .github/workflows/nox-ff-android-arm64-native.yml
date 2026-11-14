@@ -1,4 +1,4 @@
-name: NOX ARM64 nativo - A-B com root no emulador
+name: NOX ARM64 macOS emulacao sem HVF
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   native-arm64-test:
     runs-on: macos-15
-    timeout-minutes: 50
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -47,8 +47,8 @@ jobs:
           profile: pixel_5
           ram-size: 3072M
           disk-size: 8G
-          emulator-boot-timeout: 1200
-          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-boot-timeout: 460
+          emulator-options: -no-accel -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           script: bash tools/diagnose_android_ab.sh
 
       - name: Salvar relatórios do Android ARM64

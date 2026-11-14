@@ -32,7 +32,7 @@ jobs:
 
       - name: Baixar patch do proprio DEX (sem arquivos do jogo)
         env:
-          PATCH_URL_B64: "aHR0cHM6Ly91YzRmMGNhM2M2YTk0YmNiZGQzZmE0ZTBiZTQzLmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw0RFJCS3pHbXl2UUNaN01ZN1NhWlU4X3draVFuYXJEMTJDOXAyT0dPVW91LVhudFd0eVRHQnE1Y1hvY0dJY0NqNUlSWFNDQzU4cHhPWmFWZ21nZ0VjejBNbFNBdUU5czN1bFhMaHVhRklyZUVPbDQxd2JyUG1uOENUTloyakZWOTQweGstbllqdU5rNzR3UTVqaFV3aFc2d2xpMVI5R1U2NnNGZ090QTRfZWx3L2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+          PATCH_URL_B64: "aHR0cHM6Ly91Y2I1MjE1Zjk0ZGRiNDM2MDVjMDM2M2MwNTczLmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw1Y1dNTU4weV9wR2Qtc015T2tFLVp5QkZnZ2NOcnRSOEM5THgwS0EtdGlxMHBXUW9xUUdkQVBiNUR1aXVndm5MeXZVNUFZWl9mSkxuUGE5cERMUHJYSFlEZE8xUmttQS1kdGtfM1UtLTNMb002MXJ6cXY4ZXNGM1FkLWNmSGFsZkVvZzB4d2RjNXJwYWlZLUVlejZpaFN6VVQ1Qnh4NXZrRVNUODJmRG9iOFVnL2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
         shell: bash
         run: |
           set -euo pipefail
@@ -87,7 +87,7 @@ jobs:
           if [ ! -x "$bt/apksigner" ]; then
              "$sdk/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"
           fi
-          "$bt/apksigner" verify --verbose --print-certs build/NOX-FF-OB55-safe-startup-BETA.apk \
+          "$bt/apksigner" verify --min-sdk-version 24 --verbose --print-certs build/NOX-FF-OB55-safe-startup-BETA.apk \
             | tee build/apk-sig-report.txt
           grep -q "3056364c899beb3befa106a2aacf5c81e332bf369f871bd39beedcb36387230c" \
             <(tr '[:upper:]' '[:lower:]' < build/apk-sig-report.txt)

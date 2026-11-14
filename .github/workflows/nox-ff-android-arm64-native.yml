@@ -1,0 +1,73 @@
+name: NOX ARM64 nativo - emulador macOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nox-ff-android-arm64-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-arm64-test:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirmar arquitetura nativa do runner
+        shell: bash
+        run: |
+          uname -a
+          uname -m
+          test "$(uname -m)" = "arm64"
+
+      - name: Baixar APK original e verificar hash
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p ab-output
+          gh release download nox-ff-ob55-diagnostic-complete \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "NOX-FF-OB55-runtime-probe.apk" \
+            --dir ab-output
+          printf 'c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  ab-output/NOX-FF-OB55-runtime-probe.apk\n' \
+            | shasum -a 256 -c -
+
+      - name: Android ARM64 nativo com overlay ativo/desativado
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: arm64-v8a
+          profile: pixel_5
+          ram-size: 3072M
+          disk-size: 8G
+          emulator-boot-timeout: 1200
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash tools/diagnose_android_ab.sh
+
+      - name: Salvar relatórios do Android ARM64
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-Android-native-ARM64-AB
+          path: |
+            ab-output/summary.txt
+            ab-output/*-logcat.txt
+            ab-output/*-screen.png
+            ab-output/*-launch.txt
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Resultado ARM64
+        if: always()
+        shell: bash
+        run: |
+          if [ -f ab-output/summary.txt ]; then
+            tail -n 110 ab-output/summary.txt >> "$GITHUB_STEP_SUMMARY"
+          fi

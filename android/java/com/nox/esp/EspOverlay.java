@@ -44,9 +44,19 @@ public final class EspOverlay extends View {
         }
     }
 
+    private static final boolean NATIVE_READY;
+
     static {
-        System.loadLibrary("nox_esp");
-        nativeInit();
+        boolean ready = false;
+        try {
+            System.loadLibrary("nox_esp");
+            nativeInit();
+            ready = true;
+        } catch (LinkageError error) {
+            android.util.Log.e("NOX-RUNTIME",
+                    "Native diagnostics unavailable; game remains usable", error);
+        }
+        NATIVE_READY = ready;
     }
 
     private static native void nativeInit();
@@ -63,6 +73,8 @@ public final class EspOverlay extends View {
     }
 
     public static void attach(Activity activity) {
+        if (!NATIVE_READY || activity == null || activity.isFinishing()
+                || activity.isDestroyed()) return;
         activity.runOnUiThread(() -> {
             ViewGroup root = activity.findViewById(android.R.id.content);
             if (root == null) return;
@@ -120,7 +132,13 @@ public final class EspOverlay extends View {
         super.onDraw(canvas);
         Frame frame = latest;
         if (frame == null) {
-            String probe = nativeProbe();
+            String probe;
+            try {
+                probe = nativeProbe();
+            } catch (LinkageError error) {
+                android.util.Log.e("NOX-RUNTIME", "Probe disabled", error);
+                return;
+            }
             if (!probe.equals(lastProbe)) {
                 android.util.Log.i("NOX-RUNTIME", probe);
                 lastProbe = probe;

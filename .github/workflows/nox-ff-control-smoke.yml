@@ -1,0 +1,100 @@
+name: NOX controle sem overlay - diagnostico de inicializacao
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nox-ff-control-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download original diagnostic release APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p test-output
+          gh release download nox-ff-ob55-diagnostic-complete \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "NOX-FF-OB55-runtime-probe.apk" --dir test-output
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  test-output/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+
+      - name: Remove NOX module and sign control APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/strip_nox.py \
+            test-output/NOX-FF-OB55-runtime-probe.apk \
+            test-output/control-unsigned.apk
+          command -v keytool
+          keytool -genkeypair -noprompt -keystore /tmp/nox-control.jks \
+            -alias ctrl -keyalg RSA -keysize 3072 -validity 365 \
+            -storepass changeit -keypass changeit -dname "CN=NOX Emulator Control"
+          bt="$ANDROID_HOME/build-tools/35.0.0"
+          if [ ! -x "$bt/apksigner" ]; then
+            sdkmanager "build-tools;35.0.0"
+          fi
+          "$bt/zipalign" -f -p 4 test-output/control-unsigned.apk test-output/control-aligned.apk
+          "$bt/apksigner" sign --ks /tmp/nox-control.jks \
+            --ks-key-alias ctrl --ks-pass pass:changeit \
+            --key-pass pass:changeit \
+            --out test-output/control-signed.apk test-output/control-aligned.apk
+          "$bt/apksigner" verify --verbose test-output/control-signed.apk
+          mv test-output/NOX-FF-OB55-runtime-probe.apk test-output/with-nox-apk.zip
+          mv test-output/control-signed.apk test-output/NOX-FF-OB55-runtime-probe.apk
+          rm -f test-output/control-unsigned.apk test-output/control-aligned.apk
+          echo "CONTROL APK: no classes4.dex, no libnox_esp, no com.nox.esp.BootstrapProvider" > test-output/control-build.txt
+          du -h test-output/NOX-FF-OB55-runtime-probe.apk >> test-output/control-build.txt
+
+      - name: Enable emulator KVM
+        run: sudo chown "$USER" /dev/kvm || true
+
+      - name: Install and open NOX-free control on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            bash tools/diagnose_android_apk.sh
+
+      - name: Upload control diagnostics (NOT a confirmed fix)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-control-no-overlay-logcat
+          path: |
+            test-output/control-build.txt
+            test-output/diagnostico.txt
+            test-output/install.txt
+            test-output/emulator-info.txt
+            test-output/smoke-logcat.txt
+            test-output/smoke-filtered.txt
+            test-output/screenshot.png
+            test-output/activity.txt
+            test-output/crash.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Summarize findings
+        if: always()
+        run: |
+          echo "### APK de controle sem overlay" >> "$GITHUB_STEP_SUMMARY"
+          if test -f test-output/smoke-logcat.txt; then
+            grep -E 'GC tried to mark invalid reference|Fatal signal|FATAL EXCEPTION|AnoApplication|berberis.*Undefined instruction|NOX-RUNTIME' \
+              test-output/smoke-logcat.txt | tail -n 50 >> "$GITHUB_STEP_SUMMARY" || true
+          fi

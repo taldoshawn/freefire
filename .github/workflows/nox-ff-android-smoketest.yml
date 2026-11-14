@@ -1,0 +1,86 @@
+name: NOX Android emulator - smoke test
+
+on:
+  push:
+    paths:
+      - ".github/workflows/nox-ff-android-smoketest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar APK de diagnóstico publicado e conferir SHA-256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-output
+          gh release download nox-ff-ob55-diagnostic-complete \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "NOX-FF-OB55-runtime-probe.apk" \
+            --dir test-output
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  test-output/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+          printf '%s\n' "APK original conferido" > test-output/diagnostico.txt
+
+      - name: Habilitar aceleracao KVM no runner
+        shell: bash
+        run: |
+          sudo chown "$USER" /dev/kvm || true
+          ls -l /dev/kvm || true
+
+      - name: Iniciar emulador e capturar inicializacao
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 4096M
+          disk-size: 8G
+          emulator-boot-timeout: 900
+          emulator-options: -no-snapshot-load -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: |
+            bash tools/diagnose_android_apk.sh
+
+      - name: Publicar relatorios e screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOX-Android-emulator-diagnostics
+          path: |
+            test-output/diagnostico.txt
+            test-output/install.txt
+            test-output/emulator-info.txt
+            test-output/smoke-logcat.txt
+            test-output/smoke-filtered.txt
+            test-output/screenshot.png
+            test-output/activity.txt
+            test-output/package.txt
+            test-output/crash.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Resumo do teste
+        if: always()
+        shell: bash
+        run: |
+          echo "### NOX Android emulator" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f test-output/diagnostico.txt ]; then
+            cat test-output/diagnostico.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f test-output/smoke-filtered.txt ]; then
+            echo '---' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Logcat relevante (ultimas 60 linhas)' >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+            tail -n 60 test-output/smoke-filtered.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+          fi

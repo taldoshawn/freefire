@@ -1,0 +1,125 @@
+name: Publicar NOX safe startup beta verificada
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/nox-safe-beta-publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar APK de diagnostico anterior
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          gh release download nox-ff-ob55-diagnostic-complete \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "NOX-FF-OB55-runtime-probe.apk" \
+            --dir build
+          echo "c39fb021e9e16be270977d81eb77f8a6995f4bbbed7f8eaa979c00bf3ac149d1  build/NOX-FF-OB55-runtime-probe.apk" | sha256sum -c -
+
+      - name: Baixar patch do proprio DEX (sem arquivos do jogo)
+        env:
+          PATCH_URL_B64: "aHR0cHM6Ly91YzRmMGNhM2M2YTk0YmNiZGQzZmE0ZTBiZTQzLmRsLmRyb3Bib3h1c2VyY29udGVudC5jb20vY2QvMC9nZXQvREw0RFJCS3pHbXl2UUNaN01ZN1NhWlU4X3draVFuYXJEMTJDOXAyT0dPVW91LVhudFd0eVRHQnE1Y1hvY0dJY0NqNUlSWFNDQzU4cHhPWmFWZ21nZ0VjejBNbFNBdUU5czN1bFhMaHVhRklyZUVPbDQxd2JyUG1uOENUTloyakZWOTQweGstbllqdU5rNzR3UTVqaFV3aFc2d2xpMVI5R1U2NnNGZ090QTRfZWx3L2ZpbGU/Y19sdWlkPTkyN2YzMmQ4"
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(printf '%s' "$PATCH_URL_B64" | base64 --decode)"
+          curl --fail --location --retry 2 --silent --show-error \
+            --connect-timeout 20 --max-time 300 \
+            "$url" --output build/nox-candidate-trailer.zlib
+          test "$(stat -c %s build/nox-candidate-trailer.zlib)" = "1534930"
+
+      - name: Montar APK candidato byte a byte e validar SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib, zlib
+          base = Path("build/NOX-FF-OB55-runtime-probe.apk")
+          patch = Path("build/nox-candidate-trailer.zlib")
+          output = Path("build/NOX-FF-OB55-safe-startup-BETA.apk")
+          prefix_size = 472961350
+          with base.open("rb") as source, output.open("wb") as out:
+              remaining = prefix_size
+              while remaining:
+                  part = source.read(min(1024*1024, remaining))
+                  if not part: raise EOFError("Base APK truncated")
+                  out.write(part)
+                  remaining -= len(part)
+              tail = zlib.decompress(patch.read_bytes())
+              assert len(tail) == 4318911, len(tail)
+              assert hashlib.sha256(tail).hexdigest() == "24a8013f0262d770c2b84737f0c639ff1703ee8f645abb58cacab0a16b0f4f32"
+              out.write(tail)
+          assert output.stat().st_size == 477280261
+          with output.open('rb') as f:
+              digest = hashlib.file_digest(f, 'sha256').hexdigest()
+          expected = "9f029613286d53fbdbd791278f4c190ddfa6fcf0dc8ffeb2a9a930c68410b445"
+          assert digest == expected, (digest, expected)
+          with ZipFile(output) as z:
+              assert z.testzip() is None
+              assert z.getinfo("classes4.dex").file_size == 11008
+              assert "lib/arm64-v8a/libil2cpp.so" in z.namelist()
+              assert "lib/arm64-v8a/libnox_esp.so" in z.namelist()
+          print(f"APK VERIFIED: {output} {output.stat().st_size} bytes SHA256={digest}")
+          PY
+
+      - name: Verificar assinatura APK v2 (mesmo certificado anterior)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="$ANDROID_HOME"
+          bt="$sdk/build-tools/35.0.0"
+          if [ ! -x "$bt/apksigner" ]; then
+             "$sdk/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"
+          fi
+          "$bt/apksigner" verify --verbose --print-certs build/NOX-FF-OB55-safe-startup-BETA.apk \
+            | tee build/apk-sig-report.txt
+          grep -q "3056364c899beb3befa106a2aacf5c81e332bf369f871bd39beedcb36387230c" \
+            <(tr '[:upper:]' '[:lower:]' < build/apk-sig-report.txt)
+
+      - name: Publicar somente como prerelease experimental
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="nox-ff-ob55-safe-startup-beta"
+          apk="build/NOX-FF-OB55-safe-startup-BETA.apk"
+          cat > build/release-notes.md <<'EOF'
+          **EXPERIMENTAL — nao validado em partida nem em aparelho real.**
+          Atualizacao do APK de diagnostico ARM64: o NOX espera 12 segundos
+          antes de tentar carregar o overlay e evita derrubar o host caso a
+          biblioteca de diagnostico falhe. Apenas classes4.dex mudou.
+
+          Assinatura APK v2 verificada, usando o mesmo certificado de teste
+          da release anterior. Nao e ESP funcional; nao ha leitura de entidades
+          nem offsets reais. O problema de tela preta pode continuar devido
+          ao carregamento protegido ou assinatura modificada do Free Fire.
+          SHA256: 9f029613286d53fbdbd791278f4c190ddfa6fcf0dc8ffeb2a9a930c68410b445
+          EOF
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "NOX FF OB55 — Safe Startup (BETA experimental)" \
+              --notes-file build/release-notes.md \
+              --prerelease
+          fi
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,assets \
+            --jq '.url, (.assets[] | "\(.name): \(.size) bytes")'
